@@ -7,6 +7,7 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
 [RequireComponent(typeof(SpriteRenderer))]
+[RequireComponent(typeof(Animator))]
 public class PlayerController : MonoBehaviour
 {
     public PhysicsMaterial2D NormalPlayerMaterial;
@@ -24,6 +25,7 @@ public class PlayerController : MonoBehaviour
 
     private PlayerInput plrInput;
     private Collider2D plrCollider;
+    private Animator plrAnimatior;
     private Rigidbody2D rigid;
     private SpriteRenderer renderer;
     private InputAction MovementAction;
@@ -44,6 +46,7 @@ public class PlayerController : MonoBehaviour
         plrInput = GetComponent<PlayerInput>();
         rigid = GetComponent<Rigidbody2D>();
         renderer = GetComponent<SpriteRenderer>();
+        plrAnimatior = GetComponent<Animator>();
         plrCollider = GetComponent<Collider2D>();
         MovementAction = plrInput.actions.FindAction("Move");
         JumpAction = plrInput.actions.FindAction("Jump");
@@ -106,23 +109,30 @@ public class PlayerController : MonoBehaviour
         //grip
         if (GripAction.IsPressed() && read.x != 0)
         {
-            RaycastHit2D[] resualts = new RaycastHit2D[0];
-            int hit = Physics2D.Raycast(transform.position, read.normalized, GroundFilter, resualts, 1f);
+            System.Collections.Generic.List<RaycastHit2D> _ = new System.Collections.Generic.List<RaycastHit2D>();
+            int hit = Physics2D.Raycast(transform.position, read.normalized, GroundFilter, _, 1f);
             if (hit >= 1)
             {
                 rigid.sharedMaterial = GrippingPlayerMaterial;
+                plrAnimatior.SetBool("Gripping", true);
             }
-            else rigid.sharedMaterial = NormalPlayerMaterial;
+            else
+            {
+                plrAnimatior.SetBool("Gripping", false);
+                rigid.sharedMaterial = NormalPlayerMaterial;
+            }
 
         }
         else
         {
+            plrAnimatior.SetBool("Gripping", false);
             rigid.sharedMaterial = NormalPlayerMaterial;
         }
     }
     // Update is called once per frame
     void Update()
     {
+        plrAnimatior.SetBool("Airborne", !CanJump);
         Background.transform.position = new Vector3(currentCamera.transform.position.x, 0, 5); //since the lines are going horizontal, it doesnt matter if it move right-left properly
     }
 }
