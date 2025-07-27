@@ -1,23 +1,35 @@
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(Collider2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class PlayerController : MonoBehaviour
 {
+    public PhysicsMaterial2D NormalPlayerMaterial;
+    public PhysicsMaterial2D GrippingPlayerMaterial;
+    public LayerMask GroundLayer;
+    public Vector2 GroundCheckSize;
+    public Vector2 GroundCheckPos;
 
     public Camera currentCamera;
     public GameObject Background;
+    public Slider GripSlider;
     public int CameraZ;
     public bool CanJump;
+    public float Grip = 1.0f;
 
     private PlayerInput plrInput;
+    private Collider2D plrCollider;
     private Rigidbody2D rigid;
     private SpriteRenderer renderer;
     private InputAction MovementAction;
     private InputAction JumpAction;
+    private InputAction GripAction;
+    private ContactFilter2D GroundFilter;
 
     private float PlayerSpeedMultiplier = 15f;
 
@@ -25,13 +37,18 @@ public class PlayerController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        GroundFilter.SetLayerMask(GroundLayer);
+
         baseZ = transform.position.z;
 
         plrInput = GetComponent<PlayerInput>();
         rigid = GetComponent<Rigidbody2D>();
         renderer = GetComponent<SpriteRenderer>();
+        plrCollider = GetComponent<Collider2D>();
         MovementAction = plrInput.actions.FindAction("Move");
         JumpAction = plrInput.actions.FindAction("Jump");
+        GripAction = plrInput.actions.FindAction("Grip");
+
         JumpAction.performed += jump;
         MovementAction.performed += checkDirection;
     }
@@ -61,6 +78,15 @@ public class PlayerController : MonoBehaviour
 
         rigid.linearVelocity = vel;
     }
+    private void OnDrawGizmosSelected()
+    {
+        try
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireCube(rigid.position + GroundCheckPos, GroundCheckSize);
+        }
+        catch { }
+    }
 
     private void FixedUpdate()
     {
@@ -74,6 +100,25 @@ public class PlayerController : MonoBehaviour
         vel.x = read.x * PlayerSpeedMultiplier;
 
         rigid.linearVelocity = vel;
+
+        //jumping
+        CanJump = Physics2D.OverlapBox(rigid.position + GroundCheckPos, GroundCheckSize, 0f, GroundLayer);
+        //grip
+        if (GripAction.IsPressed() && read.x != 0)
+        {
+            RaycastHit2D[] resualts = new RaycastHit2D[0];
+            int hit = Physics2D.Raycast(transform.position, read.normalized, GroundFilter, resualts, 1f);
+            if (hit >= 1)
+            {
+                rigid.sharedMaterial = GrippingPlayerMaterial;
+            }
+            else rigid.sharedMaterial = NormalPlayerMaterial;
+
+        }
+        else
+        {
+            rigid.sharedMaterial = NormalPlayerMaterial;
+        }
     }
     // Update is called once per frame
     void Update()
