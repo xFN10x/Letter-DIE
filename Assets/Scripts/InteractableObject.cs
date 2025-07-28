@@ -40,6 +40,7 @@ public class InteractableObject : MonoBehaviour
         StickyNoteButtonPrompt = GameObject.Instantiate(StickyNoteObject);
         StickyNoteButtonPrompt.transform.SetParent(gameObject.transform);
         StickyNoteButtonPrompt.transform.SetLocalPositionAndRotation(new Vector3(-4, 7, 0), Quaternion.Euler(0, 0, 0));
+        StickyNoteButtonPrompt.transform.localScale = new Vector3(1, 1, 0);
         StickyNoteGlyph = StickyNoteButtonPrompt.transform.GetChild(0).GetChild(1).GetComponent<ButtonGlyph>();
         StickyNoteGlyph.Player = Player.gameObject.GetComponent<PlayerInput>();
         StickyNoteGlyph.KeyboardImage = GetButtonSpriteByInteractButtonAndInputDevice(InputDevices.Keyboard, InteractButton);
@@ -55,21 +56,21 @@ public class InteractableObject : MonoBehaviour
         {
             InteractButton.Secondary => device switch
             {
-                InputDevices.Keyboard => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.DualSense => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.DualShock => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.Switch => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.Xbox => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                _ => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
+                InputDevices.Keyboard => Resources.Load<Sprite>("Buttons/Key&Mouse/T_F_Key_Dark"),
+                InputDevices.DualSense => Resources.Load<Sprite>("Buttons/PS4/T_P4_Square_Color"),
+                InputDevices.DualShock => Resources.Load<Sprite>("Buttons/PS5/T_P4_Square_Color"),
+                InputDevices.Switch => Resources.Load<Sprite>("Buttons/Switch/T_S_Y"),
+                InputDevices.Xbox => Resources.Load<Sprite>("Buttons/Xbox/T_X_X_Color"),
+                _ => Resources.Load<Sprite>("Buttons/Xbox/T_X_X_Color"),
             },
             _ => device switch
             {
                 InputDevices.Keyboard => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.DualSense => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.DualShock => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.Switch => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                InputDevices.Xbox => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
-                _ => Resources.Load<Sprite>("Buttons/Key&Mouse/T_E_Key_Dark"),
+                InputDevices.DualSense => Resources.Load<Sprite>("Buttons/PS4/T_P4_Circle_Color"),
+                InputDevices.DualShock => Resources.Load<Sprite>("Buttons/PS5/T_P5_Circle_Color"),
+                InputDevices.Switch => Resources.Load<Sprite>("Buttons/Switch/T_S_A"),
+                InputDevices.Xbox => Resources.Load<Sprite>("Buttons/Xbox/T_X_B_Color"),
+                _ => Resources.Load<Sprite>("Buttons/Xbox/T_X_B_Color"),
             },
         };
     }
@@ -80,22 +81,26 @@ public class InteractableObject : MonoBehaviour
         {
             beingTouched = true;
         }
-        else
+    }
+
+    private void OnTriggerExit2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
         {
             beingTouched = false;
         }
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
         if (!beingTouched)
         {
-            StickyNoteButtonPrompt.transform.localRotation = Quaternion.Euler(Vector3.Lerp(StickyNoteButtonPrompt.transform.localRotation.eulerAngles, new Vector3(90, 0, 0), 0.5f));
+            StickyNoteButtonPrompt.transform.localRotation = Quaternion.Euler(Vector3.Lerp(StickyNoteButtonPrompt.transform.localRotation.eulerAngles, new Vector3(90, 0, 0), 0.1f));
         }
         else
         {
-            StickyNoteButtonPrompt.transform.localRotation = Quaternion.Euler(Vector3.Lerp(StickyNoteButtonPrompt.transform.localRotation.eulerAngles, new Vector3(0, 0, 0), 0.5f));
+            StickyNoteButtonPrompt.transform.localRotation = Quaternion.Euler(Vector3.Lerp(StickyNoteButtonPrompt.transform.localRotation.eulerAngles, new Vector3(0, 0, 0), 0.1f));
         }
     }
 }

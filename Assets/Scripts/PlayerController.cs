@@ -24,6 +24,11 @@ public class PlayerController : MonoBehaviour
     public bool CanJump;
     public float Grip = 1.0f;
 
+    public float Dexterity = 1;
+    public float Strengh = 1;
+    public float Endurance = 1;
+    public float Robustness = 1;
+
     private PlayerInput plrInput;
     private Collider2D plrCollider;
     private Animator plrAnimatior;
@@ -132,7 +137,7 @@ public class PlayerController : MonoBehaviour
 
     private int getOppisitePlrDirection()
     {
-        return (int)plrInputRead.x * -1;
+        return Math.Sign(plrInputRead.x * -1);
     }
 
     private void HandleGrip()
@@ -151,7 +156,7 @@ public class PlayerController : MonoBehaviour
                 if (JumpAction.IsPressed())
                 {
                     Gripping = false;
-                    InvertedTarget = (int)math.round(getOppisitePlrDirection());
+                    InvertedTarget = Math.Sign(getOppisitePlrDirection());
                     InvertedControlTimer = 0.3f;
                     jump(true, (Vector2.up + new Vector2(getOppisitePlrDirection(), 0).normalized));
                 }
@@ -170,6 +175,22 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        plrInputRead = MovementAction.ReadValue<Vector2>();
+        if (InvertedControlTimer > 0)
+        {
+            switch (InvertedTarget)
+            {
+                case 1: //right
+                    plrInputRead = new Vector2(MathF.Abs(plrInputRead.x), plrInputRead.y);
+                    break;
+                case -1:
+                    plrInputRead = new Vector2(-MathF.Abs(plrInputRead.x), plrInputRead.y);
+                    break;
+                default:
+                    Debug.LogWarning(("No inversion Target!"));
+                    break;
+            }
+        }
         HandleCamera();
         HandlePlayerInput();
         HandleGrip();
@@ -177,21 +198,7 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        plrInputRead = MovementAction.ReadValue<Vector2>();
-        if (InvertedControlTimer > 0)
-        {
-            switch (InvertedTarget)
-            {
-                case 1: //right
-                    plrInputRead = new float2(math.abs(plrInputRead.x), plrInputRead.y);
-                    break;
-                case -1:
-                    plrInputRead = new float2(math.abs(plrInputRead.x) * -1f, plrInputRead.y);
-                    break;
-                default:
-                    break;
-            }
-        }
+
 
         if (GripCG.alpha != desiriedGripAlpha)
             GripCG.alpha = Mathf.Lerp(GripCG.alpha, desiriedGripAlpha, 0.5f);
