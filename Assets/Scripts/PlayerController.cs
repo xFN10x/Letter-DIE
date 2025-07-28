@@ -1,7 +1,7 @@
 using System;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.UI;
 
 [RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(Rigidbody2D))]
@@ -18,7 +18,8 @@ public class PlayerController : MonoBehaviour
 
     public Camera currentCamera;
     public GameObject Background;
-    public Slider GripSlider;
+    //public GameObject Background2;
+    public UnityEngine.UI.Slider GripSlider;
     public int CameraZ;
     public bool CanJump;
     public float Grip = 1.0f;
@@ -27,15 +28,22 @@ public class PlayerController : MonoBehaviour
     private Collider2D plrCollider;
     private Animator plrAnimatior;
     private Rigidbody2D rigid;
-    private SpriteRenderer renderer;
+    private SpriteRenderer sprRenderer;
     private InputAction MovementAction;
     private InputAction JumpAction;
     private InputAction GripAction;
+    private CanvasGroup GripCG;
     private ContactFilter2D GroundFilter;
+    private float InvertedControlTimer;
+    private int InvertedTarget;
+
+    private float desiriedGripAlpha;
 
     private float PlayerSpeedMultiplier = 15f;
-
+    private Vector2 plrInputRead;
+    private RaycastHit2D[] gripHitBuffer = new RaycastHit2D[1];
     private float baseZ;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -45,15 +53,16 @@ public class PlayerController : MonoBehaviour
 
         plrInput = GetComponent<PlayerInput>();
         rigid = GetComponent<Rigidbody2D>();
-        renderer = GetComponent<SpriteRenderer>();
+        sprRenderer = GetComponent<SpriteRenderer>();
         plrAnimatior = GetComponent<Animator>();
         plrCollider = GetComponent<Collider2D>();
         MovementAction = plrInput.actions.FindAction("Move");
         JumpAction = plrInput.actions.FindAction("Jump");
         GripAction = plrInput.actions.FindAction("Grip");
+        GripCG = GripSlider.GetComponent<CanvasGroup>();
 
         JumpAction.performed += jump;
-        MovementAction.performed += checkDirection;
+        //MovementAction.performed += CheckDirection;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -64,23 +73,22 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void checkDirection(InputAction.CallbackContext context)
+    private void jump(bool IgnoreLawOfPhysics, Vector2 Direction)
     {
-        Vector2 read = MovementAction.ReadValue<Vector2>();
-        renderer.flipX = Single.IsNegative(read.x);
-    }
-
-    private void jump(InputAction.CallbackContext context)
-    {
-        if (!CanJump) return;
+        if (!IgnoreLawOfPhysics)
+            if (!CanJump) return;
         CanJump = false;
         //if you can jump {
-        Vector2 vel = rigid.linearVelocity;
-
-        vel.y = 25;
+        Vector2 vel = Direction * 25;
 
         rigid.linearVelocity = vel;
     }
+    private void jump(InputAction.CallbackContext context)
+    {
+        jump(false, Vector2.up);
+    }
+
+
     private void OnDrawGizmosSelected()
     {
         try
@@ -91,48 +99,120 @@ public class PlayerController : MonoBehaviour
         catch { }
     }
 
-    private void FixedUpdate()
+    private void HandleCamera()
     {
         //camera
+
         Vector2 lerped2 = Vector2.Lerp(currentCamera.transform.position, transform.position, 0.2f);
         currentCamera.transform.position = new Vector3(lerped2.x, lerped2.y, CameraZ);
-        //player 
-        Vector2 read = MovementAction.ReadValue<Vector2>();
-        Vector2 vel = rigid.linearVelocity;
+    }
 
-        vel.x = read.x * PlayerSpeedMultiplier;
+    private void HandlePlayerInput()
+    {
+        bool isPlayerMoving = plrInputRead.x != 0;
+        //player 
+
+        if (plrAnimatior.GetBool("Walking") != isPlayerMoving)
+            plrAnimatior.SetBool("Walking", isPlayerMoving);
+        Vector2 vel = rigid.linearVelocity;
+        if (isPlayerMoving)
+        {
+            bool isNeg = Single.IsNegative(plrInputRead.x);
+            if (isNeg != sprRenderer.flipX)
+                sprRenderer.flipX = isNeg;
+        }
+
+        vel.x = plrInputRead.x * PlayerSpeedMultiplier;
 
         rigid.linearVelocity = vel;
 
         //jumping
         CanJump = Physics2D.OverlapBox(rigid.position + GroundCheckPos, GroundCheckSize, 0f, GroundLayer);
-        //grip
-        if (GripAction.IsPressed() && read.x != 0)
-        {
-            System.Collections.Generic.List<RaycastHit2D> _ = new System.Collections.Generic.List<RaycastHit2D>();
-            int hit = Physics2D.Raycast(transform.position, read.normalized, GroundFilter, _, 1f);
-            if (hit >= 1)
-            {
-                rigid.sharedMaterial = GrippingPlayerMaterial;
-                plrAnimatior.SetBool("Gripping", true);
-            }
-            else
-            {
-                plrAnimatior.SetBool("Gripping", false);
-                rigid.sharedMaterial = NormalPlayerMaterial;
-            }
+    }
 
-        }
-        else
+    private int getOppisitePlrDirection()
+    {
+        return (int)plrInputRead.x * -1;
+    }
+
+    private void HandleGrip()
+    {
+        //grip
+        bool Gripping = false;
+        if (GripAction.IsPressed() && plrInputRead.x != 0 && !CanJump)
         {
-            plrAnimatior.SetBool("Gripping", false);
-            rigid.sharedMaterial = NormalPlayerMaterial;
+            int hit = Physics2D.Raycast(transform.position, plrInputRead.normalized, GroundFilter, gripHitBuffer, 1f);
+            if (hit > 0 && Grip > 0)
+            {
+
+                Gripping = true;
+                Grip -= Time.deltaTime;
+
+                if (JumpAction.IsPressed())
+                {
+                    Gripping = false;
+                    InvertedTarget = (int)math.round(getOppisitePlrDirection());
+                    InvertedControlTimer = 0.3f;
+                    jump(true, (Vector2.up + new Vector2(getOppisitePlrDirection(), 0).normalized));
+                }
+            }
         }
+
+        desiriedGripAlpha = Gripping ? 1f : 0f;
+
+        if (plrAnimatior.GetBool("Gripping") != Gripping)
+            plrAnimatior.SetBool("Gripping", Gripping);
+
+        if (rigid.sharedMaterial != (Gripping ? GrippingPlayerMaterial : NormalPlayerMaterial))
+            rigid.sharedMaterial = Gripping ? GrippingPlayerMaterial : NormalPlayerMaterial;
+
+    }
+
+    private void FixedUpdate()
+    {
+        HandleCamera();
+        HandlePlayerInput();
+        HandleGrip();
     }
     // Update is called once per frame
     void Update()
     {
-        plrAnimatior.SetBool("Airborne", !CanJump);
+        plrInputRead = MovementAction.ReadValue<Vector2>();
+        if (InvertedControlTimer > 0)
+        {
+            switch (InvertedTarget)
+            {
+                case 1: //right
+                    plrInputRead = new float2(math.abs(plrInputRead.x), plrInputRead.y);
+                    break;
+                case -1:
+                    plrInputRead = new float2(math.abs(plrInputRead.x) * -1f, plrInputRead.y);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (GripCG.alpha != desiriedGripAlpha)
+            GripCG.alpha = Mathf.Lerp(GripCG.alpha, desiriedGripAlpha, 0.5f);
+
+        if (GripSlider.value != math.clamp(Grip, 0.02f, 1))
+            GripSlider.value = math.clamp(Grip, 0.02f, 1);
+
+        InvertedControlTimer -= Time.deltaTime;
+        if (InvertedControlTimer < 0) InvertedControlTimer = 0;
+
+        if (plrAnimatior.GetBool("Airborne") != !CanJump)
+            plrAnimatior.SetBool("Airborne", !CanJump);
+        if (CanJump && Grip < 1f)
+        {
+            Grip += Time.deltaTime;
+            Grip = Mathf.Clamp(Grip, 0f, 1f);
+            desiriedGripAlpha = 0.3f;
+        }
+
         Background.transform.position = new Vector3(currentCamera.transform.position.x, 0, 5); //since the lines are going horizontal, it doesnt matter if it move right-left properly
     }
+
+
 }
