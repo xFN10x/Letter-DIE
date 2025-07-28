@@ -22,8 +22,8 @@ public class PlayerController : MonoBehaviour
     public UnityEngine.UI.Slider GripSlider;
     public int CameraZ;
     public bool CanJump;
-    public float Grip = 1.0f;
 
+    public float Grip = 1.0f;
     public float Dexterity = 1;
     public float Strengh = 1;
     public float Endurance = 1;
@@ -215,7 +215,7 @@ public class PlayerController : MonoBehaviour
         {
             Grip += Time.deltaTime;
             Grip = Mathf.Clamp(Grip, 0f, 1f);
-            desiriedGripAlpha = 0.3f;
+            desiriedGripAlpha = 0.5f;
         }
 
         Background.transform.position = new Vector3(currentCamera.transform.position.x, 0, 5); //since the lines are going horizontal, it doesnt matter if it move right-left properly

@@ -24,19 +24,23 @@ public enum InteractButton
 [RequireComponent(typeof(Collider2D))]
 public class InteractableObject : MonoBehaviour
 {
-
+    public GameHandler GameHandler;
     public Interactables InteractFunction;
     public InteractButton InteractButton;
     public PlayerController Player;
+    private PlayerInput PlayerInput;
 
     public GameObject StickyNoteObject;
     private ButtonGlyph StickyNoteGlyph;
 
     private GameObject StickyNoteButtonPrompt;
     private bool beingTouched;
+    public InputAction input;
 
     void Start()
     {
+        input = new();
+
         StickyNoteButtonPrompt = GameObject.Instantiate(StickyNoteObject);
         StickyNoteButtonPrompt.transform.SetParent(gameObject.transform);
         StickyNoteButtonPrompt.transform.SetLocalPositionAndRotation(new Vector3(-4, 7, 0), Quaternion.Euler(0, 0, 0));
@@ -48,8 +52,49 @@ public class InteractableObject : MonoBehaviour
         StickyNoteGlyph.PS5Image = GetButtonSpriteByInteractButtonAndInputDevice(InputDevices.DualSense, InteractButton);
         StickyNoteGlyph.SwitchImage = GetButtonSpriteByInteractButtonAndInputDevice(InputDevices.Switch, InteractButton);
         StickyNoteGlyph.XInputImage = GetButtonSpriteByInteractButtonAndInputDevice(InputDevices.Xbox, InteractButton);
+
+
+        input.AddBinding(GetBindingByButton(false, InteractButton));
+        input.AddBinding(GetBindingByButton(true, InteractButton));
+        input.performed += Interacted;
+        input.Enable();
     }
 
+    private void Interacted(InputAction.CallbackContext obj)
+    {
+        print("Interacted!");
+        if (beingTouched)
+        {
+            print("Interacted!");
+            switch (InteractFunction)
+            {
+                case Interactables.Level:
+                    GameHandler.CurrentMenu = Menu.Leveling;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    public string GetBindingByButton(bool gamepad, InteractButton button)
+    {
+        switch (button)
+        {
+            default:
+                if (!gamepad)
+
+                    return "<Keyboard>/e";
+
+                else return "<Gamepad>/buttonEast";
+            case InteractButton.Secondary:
+                if (!gamepad)
+
+                    return "<Keyboard>/f";
+
+                else return "<Gamepad>/buttonWest";
+        }
+    }
     public Sprite GetButtonSpriteByInteractButtonAndInputDevice(InputDevices device, InteractButton button)
     {
         return button switch
