@@ -107,6 +107,15 @@ MonoBehaviour:
   InteractButton: 0
   Player: {fileID: 0}
   StickyNoteObject: {fileID: 626676246209958869, guid: ccf4dc1863d3b5d418246cac13ce621e, type: 3}
+  input:
+    m_Name: Input
+    m_Type: 1
+    m_ExpectedControlType: Button
+    m_Id: 486700fc-ce76-421b-acdb-2506a02b8ff1
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
 --- !u!58 &8662772506292230042
 CircleCollider2D:
   m_ObjectHideFlags: 0

@@ -14,7 +14,8 @@ public class PlayerController : MonoBehaviour
     public PhysicsMaterial2D GrippingPlayerMaterial;
     public LayerMask GroundLayer;
     public Vector2 GroundCheckSize;
-    public Vector2 GroundCheckPos;
+    public Vector2 GroundCheckPosFacingRight;
+    public Vector2 GroundCheckPosFacingLeft;
 
     public Camera currentCamera;
     public GameObject Background;
@@ -23,7 +24,9 @@ public class PlayerController : MonoBehaviour
     public int CameraZ;
     public bool CanJump;
 
-    public float Grip = 1.0f;
+    public float GripTimer;
+
+    public float Grip = 1;
     public float Dexterity = 1;
     public float Strengh = 1;
     public float Endurance = 1;
@@ -50,12 +53,15 @@ public class PlayerController : MonoBehaviour
     private RaycastHit2D[] gripHitBuffer = new RaycastHit2D[1];
 #pragma warning restore IDE0044 // Add readonly modifier
     private float baseZ;
-
+    private Vector3 baseScale;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        GripTimer = Grip;
+
         GroundFilter.SetLayerMask(GroundLayer);
 
+        baseScale = transform.localScale;
         baseZ = transform.position.z;
 
         plrInput = GetComponent<PlayerInput>();
@@ -82,11 +88,14 @@ public class PlayerController : MonoBehaviour
 
     private void Jump(bool IgnoreLawOfPhysics, Vector2 Direction)
     {
+        //if (!plrAnimatior.GetBool("WallJump"))
+        //    plrAnimatior.SetBool("WallJump", false);
         if (!IgnoreLawOfPhysics)
             if (!CanJump) return;
         CanJump = false;
+        plrAnimatior.SetTrigger("Jump");
         //if you can jump {
-        Vector2 vel = Direction.normalized * 25;
+        Vector2 vel = Direction.normalized * (24 + (Dexterity * 0.3f));
 
         rigid.linearVelocity = vel;
     }
@@ -95,13 +104,21 @@ public class PlayerController : MonoBehaviour
         Jump(false, Vector2.up);
     }
 
+    private Vector2 GetGroundCheckPos()
+    {
+        if (Single.IsNegative(transform.localScale.x))
+        {
+            return GroundCheckPosFacingLeft;
+        }
+        else return GroundCheckPosFacingRight;
+    }
 
     private void OnDrawGizmosSelected()
     {
         try
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawWireCube(rigid.position + GroundCheckPos, GroundCheckSize);
+            Gizmos.DrawWireCube(rigid.position + GetGroundCheckPos(), GroundCheckSize);
         }
         catch { }
     }
@@ -116,17 +133,25 @@ public class PlayerController : MonoBehaviour
 
     private void HandlePlayerInput()
     {
+        plrAnimatior.SetFloat("WalkXAbs", math.abs(plrInputRead.x * (Dexterity)));
         bool isPlayerMoving = plrInputRead.x != 0;
-        //player 
-
         if (plrAnimatior.GetBool("Walking") != isPlayerMoving)
             plrAnimatior.SetBool("Walking", isPlayerMoving);
         Vector2 vel = rigid.linearVelocity;
         if (isPlayerMoving)
         {
             bool isNeg = Single.IsNegative(plrInputRead.x);
-            if (isNeg != sprRenderer.flipX)
-                sprRenderer.flipX = isNeg;
+            if (isNeg)
+            {
+                if (transform.localScale != new Vector3(-baseScale.x, baseScale.y, baseScale.z))
+                {
+                    transform.localScale = new Vector3(-baseScale.x, baseScale.y, baseScale.z);
+                }
+            }
+            else if (transform.localScale != baseScale)
+            {
+                transform.localScale = baseScale;
+            }
         }
 
         vel.x = plrInputRead.x * PlayerSpeedMultiplier;
@@ -134,7 +159,7 @@ public class PlayerController : MonoBehaviour
         rigid.linearVelocity = vel;
 
         //jumping
-        CanJump = Physics2D.OverlapBox(rigid.position + GroundCheckPos, GroundCheckSize, 0f, GroundLayer);
+        CanJump = Physics2D.OverlapBox(rigid.position + GetGroundCheckPos(), GroundCheckSize, 0f, GroundLayer);
     }
 
     private int GetOppisitePlrDirection()
@@ -149,14 +174,15 @@ public class PlayerController : MonoBehaviour
         if (GripAction.IsPressed() && plrInputRead.x != 0 && !CanJump)
         {
             int hit = Physics2D.Raycast(transform.position, plrInputRead.normalized, GroundFilter, gripHitBuffer, 1f);
-            if (hit > 0 && Grip > 0)
+            if (hit > 0 && GripTimer > 0)
             {
 
                 Gripping = true;
-                Grip -= Time.deltaTime;
+                GripTimer -= Time.deltaTime;
 
                 if (JumpAction.IsPressed())
                 {
+                    //plrAnimatior.SetBool("WallJump", true);
                     Gripping = false;
                     InvertedTarget = Math.Sign(GetOppisitePlrDirection());
                     InvertedControlTimer = 0.3f;
@@ -177,6 +203,7 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        plrAnimatior.SetFloat("VelY", rigid.linearVelocityY);
         plrInputRead = MovementAction.ReadValue<Vector2>();
         if (InvertedControlTimer > 0)
         {
@@ -200,23 +227,28 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
+        if (PlayerSpeedMultiplier != 14 + (Dexterity * 0.3f))
+            PlayerSpeedMultiplier = 14 + (Dexterity * 0.3f);
 
         if (GripCG.alpha != desiriedGripAlpha)
             GripCG.alpha = Mathf.Lerp(GripCG.alpha, desiriedGripAlpha, 0.5f);
 
-        if (GripSlider.value != math.clamp(Grip, 0.02f, 1))
-            GripSlider.value = math.clamp(Grip, 0.02f, 1);
+        if (GripSlider.value != math.clamp(GripTimer, 0.02f, GripSlider.maxValue))
+            GripSlider.value = math.clamp(GripTimer, 0.02f, GripSlider.maxValue);
+
+        if (GripSlider.maxValue != (Grip / 4))
+            GripSlider.maxValue = (Grip / 4);
+
 
         InvertedControlTimer -= Time.deltaTime;
         if (InvertedControlTimer < 0) InvertedControlTimer = 0;
 
         if (plrAnimatior.GetBool("Airborne") != !CanJump)
             plrAnimatior.SetBool("Airborne", !CanJump);
-        if (CanJump && Grip < 1f)
+        if (CanJump && GripTimer < Grip)
         {
-            Grip += Time.deltaTime;
-            Grip = Mathf.Clamp(Grip, 0f, 1f);
+            GripTimer += Time.deltaTime * (Grip / 2);
+            GripTimer = Mathf.Clamp(GripTimer, 0f, (Grip / 4));
             desiriedGripAlpha = 0.5f;
         }
 

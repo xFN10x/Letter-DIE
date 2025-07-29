@@ -30,8 +30,10 @@ public class InteractableObject : MonoBehaviour
     public PlayerController Player;
     private PlayerInput PlayerInput;
 
+
     public GameObject StickyNoteObject;
     private ButtonGlyph StickyNoteGlyph;
+    protected bool CanTouch = true;
 
     private GameObject StickyNoteButtonPrompt;
     protected bool beingTouched;
@@ -48,11 +50,11 @@ public class InteractableObject : MonoBehaviour
 
         StickyNoteButtonPrompt = GameObject.Instantiate(StickyNoteObject);
         StickyNoteButtonPrompt.transform.SetParent(gameObject.transform);
-        StickyNoteButtonPrompt.transform.SetLocalPositionAndRotation(new Vector3(0, 0, 0), Quaternion.Euler(0, 0, 0));
+        StickyNoteButtonPrompt.transform.SetLocalPositionAndRotation(new Vector3(0, 1, 0), Quaternion.Euler(0, 0, 0));
         Vector3 parentScale = transform.lossyScale;
         StickyNoteButtonPrompt.transform.localScale = new Vector3(
-    parentScale.x != 0 ? 1f / parentScale.x : 1f,
-    parentScale.y != 0 ? .5f / parentScale.y : .5f,
+    parentScale.x != 0 ? .2f / parentScale.x : 1f,
+    parentScale.y != 0 ? .15f / parentScale.y : .5f,
     1f
 );
         StickyNoteGlyph = StickyNoteButtonPrompt.transform.GetChild(0).GetChild(1).GetComponent<ButtonGlyph>();
@@ -72,10 +74,10 @@ public class InteractableObject : MonoBehaviour
 
     protected virtual void Interacted(InputAction.CallbackContext obj)
     {
-        print("Interacted!");
-        if (beingTouched)
+        //print("Interacted!");
+        if (beingTouched && CanTouch)
         {
-            print("Interacted!");
+            //print("Interacted!");
             switch (InteractFunction)
             {
                 case Interactables.Level:
@@ -112,8 +114,8 @@ public class InteractableObject : MonoBehaviour
             InteractButton.Secondary => device switch
             {
                 InputDevices.Keyboard => Resources.Load<Sprite>("Buttons/Key&Mouse/T_F_Key_Dark"),
-                InputDevices.DualSense => Resources.Load<Sprite>("Buttons/PS4/T_P4_Square_Color"),
-                InputDevices.DualShock => Resources.Load<Sprite>("Buttons/PS5/T_P4_Square_Color"),
+                InputDevices.DualSense => Resources.Load<Sprite>("Buttons/PS5/T_P5_Square_Color"),
+                InputDevices.DualShock => Resources.Load<Sprite>("Buttons/PS4/T_P4_Square_Color"),
                 InputDevices.Switch => Resources.Load<Sprite>("Buttons/Switch/T_S_Y"),
                 InputDevices.Xbox => Resources.Load<Sprite>("Buttons/Xbox/T_X_X_Color"),
                 _ => Resources.Load<Sprite>("Buttons/Xbox/T_X_X_Color"),
@@ -132,7 +134,7 @@ public class InteractableObject : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.gameObject.CompareTag("Player"))
+        if (collision.gameObject.CompareTag("Player") && CanTouch)
         {
             beingTouched = true;
         }
