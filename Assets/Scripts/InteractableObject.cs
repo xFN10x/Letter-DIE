@@ -34,17 +34,27 @@ public class InteractableObject : MonoBehaviour
     private ButtonGlyph StickyNoteGlyph;
 
     private GameObject StickyNoteButtonPrompt;
-    private bool beingTouched;
+    protected bool beingTouched;
     public InputAction input;
 
-    void Start()
+    private void Start()
+    {
+        SuperStart();
+    }
+
+    protected void SuperStart()
     {
         input = new();
 
         StickyNoteButtonPrompt = GameObject.Instantiate(StickyNoteObject);
         StickyNoteButtonPrompt.transform.SetParent(gameObject.transform);
-        StickyNoteButtonPrompt.transform.SetLocalPositionAndRotation(new Vector3(-4, 7, 0), Quaternion.Euler(0, 0, 0));
-        StickyNoteButtonPrompt.transform.localScale = new Vector3(1, 1, 0);
+        StickyNoteButtonPrompt.transform.SetLocalPositionAndRotation(new Vector3(0, 0, 0), Quaternion.Euler(0, 0, 0));
+        Vector3 parentScale = transform.lossyScale;
+        StickyNoteButtonPrompt.transform.localScale = new Vector3(
+    parentScale.x != 0 ? 1f / parentScale.x : 1f,
+    parentScale.y != 0 ? .5f / parentScale.y : .5f,
+    1f
+);
         StickyNoteGlyph = StickyNoteButtonPrompt.transform.GetChild(0).GetChild(1).GetComponent<ButtonGlyph>();
         StickyNoteGlyph.Player = Player.gameObject.GetComponent<PlayerInput>();
         StickyNoteGlyph.KeyboardImage = GetButtonSpriteByInteractButtonAndInputDevice(InputDevices.Keyboard, InteractButton);
@@ -60,7 +70,7 @@ public class InteractableObject : MonoBehaviour
         input.Enable();
     }
 
-    private void Interacted(InputAction.CallbackContext obj)
+    protected virtual void Interacted(InputAction.CallbackContext obj)
     {
         print("Interacted!");
         if (beingTouched)

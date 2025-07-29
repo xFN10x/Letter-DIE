@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 public enum Menu
@@ -10,6 +11,9 @@ public class GameHandler : MonoBehaviour
     public bool Paused;
     public Menu CurrentMenu;
 
+    public int Graphite;
+    public TextMeshProUGUI GraphiteCounter;
+
     public CanvasGroup LevelingMenu;
     private GameObject levelingMenuGO;
     private RectTransform levelingMenuRect;
@@ -18,6 +22,8 @@ public class GameHandler : MonoBehaviour
     {
         levelingMenuGO = LevelingMenu.gameObject;
         levelingMenuRect = levelingMenuGO.GetComponent<RectTransform>();
+
+        GraphiteCounter.SetText($"Graphite: {Graphite}");
     }
 
     public void ExitLevelingMenu()
@@ -34,6 +40,9 @@ public class GameHandler : MonoBehaviour
         {
             Time.timeScale = 1;
         }
+
+        if (GraphiteCounter.text != $"Graphite: {Graphite}")
+            GraphiteCounter.SetText($"Graphite: {Graphite}");
 
         if (CurrentMenu == Menu.Leveling)
         {

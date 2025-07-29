@@ -46,7 +46,9 @@ public class PlayerController : MonoBehaviour
 
     private float PlayerSpeedMultiplier = 15f;
     private Vector2 plrInputRead;
+#pragma warning disable IDE0044 // Add readonly modifier
     private RaycastHit2D[] gripHitBuffer = new RaycastHit2D[1];
+#pragma warning restore IDE0044 // Add readonly modifier
     private float baseZ;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -66,7 +68,7 @@ public class PlayerController : MonoBehaviour
         GripAction = plrInput.actions.FindAction("Grip");
         GripCG = GripSlider.GetComponent<CanvasGroup>();
 
-        JumpAction.performed += jump;
+        JumpAction.performed += Jump;
         //MovementAction.performed += CheckDirection;
     }
 
@@ -78,19 +80,19 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void jump(bool IgnoreLawOfPhysics, Vector2 Direction)
+    private void Jump(bool IgnoreLawOfPhysics, Vector2 Direction)
     {
         if (!IgnoreLawOfPhysics)
             if (!CanJump) return;
         CanJump = false;
         //if you can jump {
-        Vector2 vel = Direction * 25;
+        Vector2 vel = Direction.normalized * 25;
 
         rigid.linearVelocity = vel;
     }
-    private void jump(InputAction.CallbackContext context)
+    private void Jump(InputAction.CallbackContext context)
     {
-        jump(false, Vector2.up);
+        Jump(false, Vector2.up);
     }
 
 
@@ -135,7 +137,7 @@ public class PlayerController : MonoBehaviour
         CanJump = Physics2D.OverlapBox(rigid.position + GroundCheckPos, GroundCheckSize, 0f, GroundLayer);
     }
 
-    private int getOppisitePlrDirection()
+    private int GetOppisitePlrDirection()
     {
         return Math.Sign(plrInputRead.x * -1);
     }
@@ -156,9 +158,9 @@ public class PlayerController : MonoBehaviour
                 if (JumpAction.IsPressed())
                 {
                     Gripping = false;
-                    InvertedTarget = Math.Sign(getOppisitePlrDirection());
+                    InvertedTarget = Math.Sign(GetOppisitePlrDirection());
                     InvertedControlTimer = 0.3f;
-                    jump(true, (Vector2.up + new Vector2(getOppisitePlrDirection(), 0).normalized));
+                    Jump(true, (Vector2.up + new Vector2(GetOppisitePlrDirection(), 1).normalized));
                 }
             }
         }
