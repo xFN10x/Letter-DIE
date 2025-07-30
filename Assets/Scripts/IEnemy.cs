@@ -9,7 +9,7 @@ public abstract class IEnemy : MonoBehaviour
     protected Rigidbody2D rigid;
     protected Collider2D collide;
     protected Animator animator;
-    public LayerMask PlayerFilter;
+    public LayerMask PlayerLayer;
 
     protected void SuperStart()
     {
@@ -31,7 +31,7 @@ public abstract class IEnemy : MonoBehaviour
 
     protected void SuperFixedUpdate()
     {
-        if (Physics2D.OverlapCircle(gameObject.transform.position, AngerRadius, PlayerFilter.value))
+        if (Physics2D.OverlapCircle(gameObject.transform.position, AngerRadius, PlayerLayer.value))
         {
             this.PlayerSeen();
         }

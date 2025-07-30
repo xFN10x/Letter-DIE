@@ -1,3 +1,4 @@
+using System;
 using Unity.Mathematics;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -11,6 +12,11 @@ public class DogEnemy : IEnemy
         run,
         lunge,
     }
+
+    public LayerMask GroundLayer;
+    public Vector2 GroundCheckSize;
+    public Vector2 GroundCheckPosFacingRight;
+    public Vector2 GroundCheckPosFacingLeft;
 
     public GameObject Player;
 
@@ -53,12 +59,13 @@ public class DogEnemy : IEnemy
 
     public void Lunge()
     {
-        if (!animator.GetBool("Airborne"))
+        if (!animator.GetBool("Airborne") && currentState != State.lunge)
         {
-            //animator.SetBool("Airborne", true);
+            currentState = State.lunge;
+            animator.SetBool("Airborne", true);
             Vector2 direction = (Player.transform.position - transform.position);
             direction.Normalize();
-            rigid.linearVelocity = direction * 100;
+            rigid.linearVelocity = direction * 50;
             print(direction);
         }
     }
@@ -78,23 +85,64 @@ public class DogEnemy : IEnemy
     {
         SuperFixedUpdate();
 
-        //Debug.DrawRay(transform.position, rigid.linearVelocity, Color.red);
-        //Debug.Log("Velocity: " + rigid.linearVelocity + " | Position: " + transform.position);
+        Vector2 directionToPlayer = (Player.transform.position - transform.position);
+        directionToPlayer.Normalize();
+
+        if (animator.GetBool("Airborne"))
+        {
+            if (Physics2D.OverlapBox((Vector2)transform.position + GetGroundCheckPos(), GroundCheckSize, 0f, GroundLayer))
+            {
+                animator.SetBool("Airborne", false);
+                if (currentState == State.lunge)
+                {
+                    currentState = State.run;
+                }
+            }
+        }
 
         if (animator.GetFloat("XSpeed") != math.abs(rigid.linearVelocityX))
             animator.SetFloat("XSpeed", math.abs(rigid.linearVelocityX));
 
-        if (Physics2D.OverlapCircle(transform.position, LungeRadius, PlayerFilter.value))
+        if (Physics2D.OverlapCircle(transform.position, LungeRadius, PlayerLayer))
         {
             animator.SetTrigger("Lunge");
+        }
 
+
+        if (currentState == State.run)
+        {
+            if (animator.GetBool("Walking") != true)
+                animator.SetBool("Walking", true);
+            rigid.linearVelocityX = 5 * Mathf.Sign(directionToPlayer.x);
+        }
+
+        if (currentState == State.bark || currentState == State.run)
+        {
+            if (transform.localScale != new Vector3(baseScaleX * Mathf.Sign(directionToPlayer.x), transform.localScale.y, transform.localScale.z))
+                transform.localScale = new Vector3(baseScaleX * Mathf.Sign(directionToPlayer.x), transform.localScale.y, transform.localScale.z);
         }
     }
 
     private void OnDrawGizmos()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, LungeRadius);
+        try
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireCube(rigid.position + GetGroundCheckPos(), GroundCheckSize);
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position, LungeRadius);
+        }
+        catch { }
+
+    }
+
+    private Vector2 GetGroundCheckPos()
+    {
+        if (Single.IsNegative(transform.localScale.x))
+        {
+            return GroundCheckPosFacingLeft;
+        }
+        else return GroundCheckPosFacingRight;
     }
 
     // Update is called once per frame
