@@ -1,3 +1,5 @@
+using DG.Tweening;
+using System.Collections;
 using System.Collections.Concurrent;
 using TMPro;
 using Unity.Mathematics;
@@ -18,6 +20,9 @@ public class GameHandler : MonoBehaviour
 
     public GameObject PlatformPrefab;
 
+    public GameObject PencilEraserTipPrefab;
+    public GameObject PencilDrawTipPrefab;
+
     public int Graphite;
     public TextMeshProUGUI GraphiteCounter;
 
@@ -29,10 +34,57 @@ public class GameHandler : MonoBehaviour
     public float LoadingTriggerX;
     public float NextSceneLoadPosX;
 
-    private static float SceneGap = 110f;
+    private int NextPencilMovement = 1;
+
+    private static readonly float SceneGap = 110f;
 
     public ConcurrentQueue<float> SceneLoadedPoses;
 
+    public void PencilEraseEffect(Vector2 Pos, GameObject Subject, SpriteRenderer Subject2)
+    {
+        StartCoroutine(PencilErase(Pos, Subject, Subject2));
+    }
+
+    protected IEnumerator PencilErase(Vector2 Pos, GameObject Subject, SpriteRenderer Subject2)
+    {
+        Rigidbody2D proposedRigid = Subject.GetComponent<Rigidbody2D>();
+        if (proposedRigid)
+        {
+            proposedRigid.constraints = RigidbodyConstraints2D.FreezeAll;
+        }
+
+        GameObject currentClone = GameObject.Instantiate(PencilEraserTipPrefab);
+        Vector3 transPos = new(Pos.x, Pos.y, -10);
+        currentClone.transform.localPosition = (transPos - (Vector3.down * 100)) + (Vector3.right * 10);
+
+        currentClone.transform.DORotate(new Vector3(0, 0, -170), 1f);
+        yield return currentClone.transform.DOMove(transPos, 1f).WaitForCompletion();
+        currentClone.GetComponent<AudioSource>().Play();
+        while (Subject2.color.a > 0f)
+        {
+
+            if (!DOTween.IsTweening(Subject2))
+                Subject2.DOColor(new Color(0, 0, 0, -0.01f), 2f);
+            if (!DOTween.IsTweening(currentClone.transform))
+                currentClone.transform.DOMove(currentClone.transform.position + (GetNextPencilMovement() == 1 ? Vector3.right : Vector3.left), 0.1f);
+            yield return new WaitForFixedUpdate();
+        }
+        currentClone.GetComponent<AudioSource>().Stop();
+
+        var targetEnd = currentClone.transform.position + (Vector3.down * 100);
+        yield return currentClone.transform.DOMove(targetEnd, 1f).WaitForCompletion();
+
+        Destroy(Subject);
+        Destroy(currentClone);
+    }
+
+    public int GetNextPencilMovement()
+    {
+        var toReturn = NextPencilMovement;
+        NextPencilMovement = (toReturn == 0 ? 1 : 0);
+
+        return toReturn;
+    }
     public void GiveGraphite(int amount)
     {
         Graphite += amount;
@@ -68,9 +120,12 @@ public class GameHandler : MonoBehaviour
         AO.completed += (v) =>
         {
             SceneLoadedPoses.TryPeek(out float x);
-
-            GameObject.Find("Root").transform.position = new Vector3(x, 0);
-            GameObject.Find("Root").name = "Loaded!";
+            GameObject root = GameObject.Find("Root");
+            root.transform.position = new Vector3(x, 0);
+            LevelPart part = root.GetComponent<LevelPart>();
+            part.gameHandler = this;
+            part.player = Player;
+            root.name = "Loaded!";
 
             SceneLoadedPoses.TryDequeue(out _);
         };

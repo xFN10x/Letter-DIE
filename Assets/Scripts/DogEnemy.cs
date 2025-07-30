@@ -11,6 +11,7 @@ public class DogEnemy : IEnemy
         bark,
         run,
         lunge,
+        death,
     }
 
     public LayerMask GroundLayer;
@@ -18,21 +19,40 @@ public class DogEnemy : IEnemy
     public Vector2 GroundCheckPosFacingRight;
     public Vector2 GroundCheckPosFacingLeft;
 
-    public GameObject Player;
+    public Vector2 DeathCheckSize;
+    public Vector2 DeathCheckPosFacingRight;
+    //public Vector2 DeathCheckPosFacingLeft;
+
+    private GameObject Player;
 
     public State currentState;
     public float moveAroundCooldown;
     public float moveAroundLength;
     public int moveAroundNextDir;
 
+    public float BarkTransitionTimer;
+
     public float LungeRadius;
+    public float StayAwayRadius;
 
     public AudioClip BarkSound;
     public AudioClip GrowlSound;
+    public AudioClip DeathSound;
+
+    public float LungeCooldown;
 
     private AudioSource source;
+    public bool CanSwitchBackToRun;
 
     private float baseScaleX;
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.layer == PlayerLayer.value && animator.GetBool("AirBorne"))
+        {
+            playerController.HurtRandomArmLeg(true);
+        }
+    }
     //private Rigidbody2D rigid;
     protected override void PlayerSeen()
     {
@@ -40,6 +60,7 @@ public class DogEnemy : IEnemy
         {
             currentState = State.bark;
             animator.SetTrigger("Angered");
+            LungeCooldown = 3f;
         }
     }
 
@@ -52,21 +73,17 @@ public class DogEnemy : IEnemy
         source.PlayOneShot(GrowlSound);
     }
 
-    public void SwitchToRun()
-    {
-        currentState = State.run;
-    }
 
     public void Lunge()
     {
-        if (!animator.GetBool("Airborne") && currentState != State.lunge)
+        if (!animator.GetBool("Airborne") && currentState == State.lunge)
         {
-            currentState = State.lunge;
             animator.SetBool("Airborne", true);
-            Vector2 direction = (Player.transform.position - transform.position);
+            Vector2 direction = (Player.transform.position - transform.position) + (Vector3.up * 2);
+
             direction.Normalize();
-            rigid.linearVelocity = direction * 50;
-            print(direction);
+            rigid.AddForce(direction * 100f, ForceMode2D.Impulse);
+            print(rigid.linearVelocity);
         }
     }
 
@@ -74,65 +91,99 @@ public class DogEnemy : IEnemy
     void Start()
     {
         SuperStart();
+        Player = playerController.gameObject;
         moveAroundCooldown = Random.Range(2f, 6f);
         currentState = State.look;
         baseScaleX = transform.localScale.x;
 
         source = GetComponent<AudioSource>();
+        playerController = Player.GetComponent<PlayerController>();
     }
 
     private void FixedUpdate()
     {
-        SuperFixedUpdate();
-
-        Vector2 directionToPlayer = (Player.transform.position - transform.position);
-        directionToPlayer.Normalize();
-
-        if (animator.GetBool("Airborne"))
+        if (currentState != State.death)
         {
+            SuperFixedUpdate();
+
+            Vector2 directionToPlayer = (Player.transform.position - transform.position);
+            directionToPlayer.Normalize();
+
+            if (Physics2D.OverlapBox((Vector2)transform.position + DeathCheckPosFacingRight, DeathCheckSize, 0f, PlayerLayer))
+            {
+                GetComponent<Collider2D>().enabled = false;
+                GetComponent<Animator>().enabled = false;
+                playerController.Jump(true, Vector2.up);
+                animator.SetBool("Dead", true);
+                Died();
+            }
+
+
             if (Physics2D.OverlapBox((Vector2)transform.position + GetGroundCheckPos(), GroundCheckSize, 0f, GroundLayer))
             {
                 animator.SetBool("Airborne", false);
-                if (currentState == State.lunge)
+                if (currentState == State.lunge && CanSwitchBackToRun)
                 {
                     currentState = State.run;
                 }
             }
-        }
+            else
+            {
+                animator.SetBool("Airborne", true);
 
-        if (animator.GetFloat("XSpeed") != math.abs(rigid.linearVelocityX))
-            animator.SetFloat("XSpeed", math.abs(rigid.linearVelocityX));
+                print("not touchin ground");
+                if (currentState == State.lunge && CanSwitchBackToRun == false)
+                {
+                    CanSwitchBackToRun = true;
+                }
+            }
 
-        if (Physics2D.OverlapCircle(transform.position, LungeRadius, PlayerLayer))
-        {
-            animator.SetTrigger("Lunge");
-        }
+
+            if (animator.GetFloat("XSpeed") != math.abs(rigid.linearVelocityX))
+                animator.SetFloat("XSpeed", math.abs(rigid.linearVelocityX));
+
+            if (Physics2D.OverlapCircle(transform.position, LungeRadius, PlayerLayer) && LungeCooldown <= 0)
+            {
+                currentState = State.lunge;
+                CanSwitchBackToRun = false;
+                animator.SetTrigger("Lunge");
+                LungeCooldown = 3f;
+            }
 
 
-        if (currentState == State.run)
-        {
-            if (animator.GetBool("Walking") != true)
-                animator.SetBool("Walking", true);
-            rigid.linearVelocityX = 5 * Mathf.Sign(directionToPlayer.x);
-        }
+            if (currentState == State.run)
+            {
+                if (animator.GetBool("Walking") != true)
+                    animator.SetBool("Walking", true);
+                if (currentState != State.lunge)
+                    if (Physics2D.OverlapCircle(transform.position, StayAwayRadius, PlayerLayer))
+                    {
+                        rigid.linearVelocityX = 10 * Mathf.Sign(-directionToPlayer.x);
+                    }
+                    else if (Physics2D.OverlapCircle(transform.position, StayAwayRadius + 3, PlayerLayer))
+                        rigid.linearVelocityX = 0;
+                    else
+                        rigid.linearVelocityX = 10 * Mathf.Sign(directionToPlayer.x);
+            }
 
-        if (currentState == State.bark || currentState == State.run)
-        {
-            if (transform.localScale != new Vector3(baseScaleX * Mathf.Sign(directionToPlayer.x), transform.localScale.y, transform.localScale.z))
-                transform.localScale = new Vector3(baseScaleX * Mathf.Sign(directionToPlayer.x), transform.localScale.y, transform.localScale.z);
+            if (currentState == State.bark || currentState == State.run)
+            {
+                if (transform.localScale != new Vector3(baseScaleX * Mathf.Sign(directionToPlayer.x), transform.localScale.y, transform.localScale.z))
+                    transform.localScale = new Vector3(baseScaleX * Mathf.Sign(directionToPlayer.x), transform.localScale.y, transform.localScale.z);
+            }
         }
     }
+    [ExecuteInEditMode]
 
     private void OnDrawGizmos()
     {
-        try
-        {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireCube(rigid.position + GetGroundCheckPos(), GroundCheckSize);
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, LungeRadius);
-        }
-        catch { }
+#if UNITY_EDITOR
+        Gizmos.DrawWireCube(transform.position + (Vector3)DeathCheckPosFacingRight, DeathCheckSize);
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, LungeRadius);
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, StayAwayRadius);
+#endif
 
     }
 
@@ -183,12 +234,34 @@ public class DogEnemy : IEnemy
                 }
 
                 break;
+            case State.bark:
+                if (BarkTransitionTimer <= 0)
+                {
+                    currentState = State.run;
+                }
+                BarkTransitionTimer -= Time.deltaTime;
+                break;
             case State.run:
+                LungeCooldown -= Time.deltaTime;
                 break;
             case State.lunge:
                 break;
             default:
                 break;
         }
+    }
+
+    //private IEnumerator Die()
+    //{
+
+    //}
+
+    protected override void Died()
+    {
+        currentState = State.death;
+        GetComponent<ParticleSystem>().Play();
+        source.PlayOneShot(DeathSound);
+        gameHandler.GiveGraphite(100);
+        gameHandler.PencilEraseEffect(transform.position, gameObject, gameObject.GetComponent<SpriteRenderer>());
     }
 }

@@ -5,6 +5,9 @@ using UnityEngine;
 [RequireComponent(typeof(Animator))]
 public abstract class IEnemy : MonoBehaviour
 {
+    public GameHandler gameHandler;
+    public PlayerController playerController;
+
     public float AngerRadius;
     protected Rigidbody2D rigid;
     protected Collider2D collide;
@@ -28,6 +31,7 @@ public abstract class IEnemy : MonoBehaviour
     }
 
     protected abstract void PlayerSeen();
+    protected abstract void Died();
 
     protected void SuperFixedUpdate()
     {

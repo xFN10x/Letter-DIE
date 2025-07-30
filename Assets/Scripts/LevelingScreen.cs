@@ -112,10 +112,4 @@ public class LevelingScreen : MonoBehaviour
             $"Grip: {Player.Grip}\n" +
             $"Strengh: {Player.Strengh}");
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
 }

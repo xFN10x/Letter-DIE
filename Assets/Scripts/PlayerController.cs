@@ -3,19 +3,51 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum Limb : int
+{
+    Head,
+    Torso,
+    LeftArm, RightArm,
+    LeftLeg, RightLeg,
+}
+
 [RequireComponent(typeof(PlayerInput))]
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Collider2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(AudioSource))]
 public class PlayerController : MonoBehaviour
 {
+    public GameHandler GameHandler;
+
     public PhysicsMaterial2D NormalPlayerMaterial;
     public PhysicsMaterial2D GrippingPlayerMaterial;
     public LayerMask GroundLayer;
     public Vector2 GroundCheckSize;
     public Vector2 GroundCheckPosFacingRight;
     public Vector2 GroundCheckPosFacingLeft;
+
+    public AudioClip JumpSound;
+    public AudioClip WallJumpExtraSound;
+    public AudioClip HurtSound;
+
+    public AudioClip[] StepSounds;
+
+    public GameObject RightArmRoot;
+    public GameObject LeftArmRoot;
+    public GameObject RightLegRoot;
+    public GameObject LeftLegRoot;
+
+    public GameObject RightArmIK;
+    public GameObject LeftArmIK;
+    public GameObject RightLegIK;
+    public GameObject LeftLegIK;
+
+    public int RightArmHealth;
+    public int LeftArmHealth;
+    public int RightLegHealth;
+    public int LeftLegHealth;
 
     public Camera currentCamera;
     public GameObject Background;
@@ -36,6 +68,7 @@ public class PlayerController : MonoBehaviour
     private Collider2D plrCollider;
     private Animator plrAnimatior;
     private Rigidbody2D rigid;
+    private AudioSource source;
     private SpriteRenderer sprRenderer;
     private InputAction MovementAction;
     private InputAction JumpAction;
@@ -66,6 +99,7 @@ public class PlayerController : MonoBehaviour
 
         plrInput = GetComponent<PlayerInput>();
         rigid = GetComponent<Rigidbody2D>();
+        source = GetComponent<AudioSource>();
         sprRenderer = GetComponent<SpriteRenderer>();
         plrAnimatior = GetComponent<Animator>();
         plrCollider = GetComponent<Collider2D>();
@@ -86,10 +120,8 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void Jump(bool IgnoreLawOfPhysics, Vector2 Direction)
+    public void Jump(bool IgnoreLawOfPhysics, Vector2 Direction)
     {
-        //if (!plrAnimatior.GetBool("WallJump"))
-        //    plrAnimatior.SetBool("WallJump", false);
         if (!IgnoreLawOfPhysics)
             if (!CanJump) return;
         CanJump = false;
@@ -98,6 +130,8 @@ public class PlayerController : MonoBehaviour
         Vector2 vel = Direction.normalized * (24 + (Dexterity * 0.3f));
 
         rigid.linearVelocity = vel;
+        source.PlayOneShot(JumpSound);
+
     }
     private void Jump(InputAction.CallbackContext context)
     {
@@ -111,6 +145,25 @@ public class PlayerController : MonoBehaviour
             return GroundCheckPosFacingLeft;
         }
         else return GroundCheckPosFacingRight;
+    }
+
+    public void StepSound()
+    {
+        int randomPick = UnityEngine.Random.Range(0, StepSounds.Length - 1);
+
+        source.PlayOneShot(StepSounds[randomPick]);
+    }
+
+    public void HurtRandomArmLeg(bool AttackOtherAfterAllGone)
+    {
+        int random = UnityEngine.Random.Range(2, 5);
+
+        HurtLimb(random);
+    }
+
+    public void HurtLimb(int limb)
+    {
+        source.PlayOneShot(HurtSound);
     }
 
     private void OnDrawGizmosSelected()
@@ -187,12 +240,14 @@ public class PlayerController : MonoBehaviour
                     InvertedTarget = Math.Sign(GetOppisitePlrDirection());
                     InvertedControlTimer = 0.3f;
                     GripTimer -= 0.2f;
+                    source.PlayOneShot(WallJumpExtraSound);
+
                     Jump(true, (Vector2.up + new Vector2(GetOppisitePlrDirection(), 1).normalized));
                 }
             }
         }
 
-        desiriedGripAlpha = !CanJump && GripTimer <= 1.75f + Grip ? 1f : (CanJump && GripTimer < 1.75f + Grip ? 0.5f : 0);
+        desiriedGripAlpha = !CanJump && GripTimer <= 0.75f + Grip ? 1f : (CanJump && GripTimer < 0.75f + Grip ? 0.5f : 0);
 
         if (plrAnimatior.GetBool("Gripping") != Gripping)
             plrAnimatior.SetBool("Gripping", Gripping);
@@ -239,13 +294,13 @@ public class PlayerController : MonoBehaviour
         if (GripSlider.value != math.clamp(GripTimer, 0.02f, GripSlider.maxValue))
             GripSlider.value = math.clamp(GripTimer, 0.02f, GripSlider.maxValue);
 
-        if (GripSlider.maxValue != 1.75f + (Grip / 4))
-            GripSlider.maxValue = 1.75f + (Grip / 4);
+        if (GripSlider.maxValue != 0.75f + (Grip / 4))
+            GripSlider.maxValue = 0.75f + (Grip / 4);
 
-        if (CanJump && GripTimer < 1.75f + Grip)
+        if (CanJump && GripTimer < 0.75f + Grip)
         {
             GripTimer += Time.deltaTime * (Grip / 2);
-            GripTimer = Mathf.Clamp(GripTimer, 0f, 1.75f + (Grip / 4));
+            GripTimer = Mathf.Clamp(GripTimer, 0f, 0.75f + (Grip / 4));
         }
 
         InvertedControlTimer -= Time.deltaTime;
