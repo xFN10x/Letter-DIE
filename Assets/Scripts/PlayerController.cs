@@ -186,12 +186,13 @@ public class PlayerController : MonoBehaviour
                     Gripping = false;
                     InvertedTarget = Math.Sign(GetOppisitePlrDirection());
                     InvertedControlTimer = 0.3f;
+                    GripTimer -= 0.2f;
                     Jump(true, (Vector2.up + new Vector2(GetOppisitePlrDirection(), 1).normalized));
                 }
             }
         }
 
-        desiriedGripAlpha = Gripping ? 1f : 0f;
+        desiriedGripAlpha = !CanJump && GripTimer <= 1.75f + Grip ? 1f : (CanJump && GripTimer < 1.75f + Grip ? 0.5f : 0);
 
         if (plrAnimatior.GetBool("Gripping") != Gripping)
             plrAnimatior.SetBool("Gripping", Gripping);
@@ -203,7 +204,9 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        plrAnimatior.SetFloat("VelY", rigid.linearVelocityY);
+
+        if (plrAnimatior.GetFloat("VelY") != rigid.linearVelocityY)
+            plrAnimatior.SetFloat("VelY", rigid.linearVelocityY);
         plrInputRead = MovementAction.ReadValue<Vector2>();
         if (InvertedControlTimer > 0)
         {
@@ -236,21 +239,21 @@ public class PlayerController : MonoBehaviour
         if (GripSlider.value != math.clamp(GripTimer, 0.02f, GripSlider.maxValue))
             GripSlider.value = math.clamp(GripTimer, 0.02f, GripSlider.maxValue);
 
-        if (GripSlider.maxValue != (Grip / 4))
-            GripSlider.maxValue = (Grip / 4);
+        if (GripSlider.maxValue != 1.75f + (Grip / 4))
+            GripSlider.maxValue = 1.75f + (Grip / 4);
 
+        if (CanJump && GripTimer < 1.75f + Grip)
+        {
+            GripTimer += Time.deltaTime * (Grip / 2);
+            GripTimer = Mathf.Clamp(GripTimer, 0f, 1.75f + (Grip / 4));
+        }
 
         InvertedControlTimer -= Time.deltaTime;
         if (InvertedControlTimer < 0) InvertedControlTimer = 0;
 
         if (plrAnimatior.GetBool("Airborne") != !CanJump)
             plrAnimatior.SetBool("Airborne", !CanJump);
-        if (CanJump && GripTimer < Grip)
-        {
-            GripTimer += Time.deltaTime * (Grip / 2);
-            GripTimer = Mathf.Clamp(GripTimer, 0f, (Grip / 4));
-            desiriedGripAlpha = 0.5f;
-        }
+
 
         Background.transform.position = new Vector3(currentCamera.transform.position.x, 0, 5); //since the lines are going horizontal, it doesnt matter if it move right-left properly
     }
